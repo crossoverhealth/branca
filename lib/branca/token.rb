@@ -1,8 +1,10 @@
-require "rbnacl"
-require "base_x"
+# frozen_string_literal: true
 
-require_relative "configuration"
-require_relative "errors"
+require 'rbnacl'
+require 'base_x'
+
+require_relative 'configuration'
+require_relative 'errors'
 
 module Branca
   class Token
@@ -16,40 +18,48 @@ module Branca
       @timestamp = timestamp
     end
 
-    def encode
-      nonce = RbNaCl::Random.random_bytes(self.class.cipher.nonce_bytes)
+    def encode(configuration = Branca::Configuration)
+      cipher = RbNaCl::AEAD::XChaCha20Poly1305IETF.new(configuration.secret_key)
+      nonce = RbNaCl::Random.random_bytes(cipher.nonce_bytes)
 
       header = [VERSION, @timestamp.to_i].pack('C N') + nonce
 
-      ciphertext = self.class.cipher.encrypt(nonce, @payload, header)
+      ciphertext = cipher.encrypt(nonce, @payload, header)
 
       raw_token = header + ciphertext
 
       BaseX::Base62.encode(raw_token)
     end
 
-    def self.decode(token)
-      decoded = BaseX::Base62.decode(token)
-      bytes = decoded.unpack("C C4 C24 C*")
-      header = bytes.shift(1 + 4 + 24)
+    class << self
+      def decode(token, configuration = Branca::Configuration)
+        header, bytes = decode_token_components(token)
+        version, timestamp, nonce = decode_header(header)
 
-      version = header[0]
-      timestamp = header[1..4].pack("C*").unpack1("N")
-      nonce = header[5..].pack("C*")
-      data = bytes.pack("C*")
+        raise Branca::InvalidVersionError unless version == VERSION
 
-      raise Branca::InvalidVersionError unless version == VERSION
+        cipher = RbNaCl::AEAD::XChaCha20Poly1305IETF.new(configuration.secret_key)
+        payload = cipher.decrypt(nonce, bytes.pack('C*'), header.pack('C*'))
 
-      payload = self.cipher.decrypt(nonce, data, header.pack("C*"))
+        new(payload, Time.at(timestamp).utc)
+      end
 
-      new(payload, Time.at(timestamp).utc)
-    end
+      private
 
-    private
+      def decode_token_components(token)
+        bytes = BaseX::Base62.decode(token).unpack('C C4 C24 C*')
+        header = bytes.shift(1 + 4 + 24)
 
-    def self.cipher
-      RbNaCl::AEAD::XChaCha20Poly1305IETF.new(Branca::Configuration.secret_key)
+        [header, bytes]
+      end
+
+      def decode_header(header)
+        [
+          header[0],
+          header[1..4].pack('C*').unpack1('N'),
+          header[5..].pack('C*')
+        ]
+      end
     end
   end
-
 end
