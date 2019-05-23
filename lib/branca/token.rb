@@ -18,8 +18,8 @@ module Branca
       @timestamp = timestamp
     end
 
-    def encode(configuration = Branca::Configuration)
-      cipher = RbNaCl::AEAD::XChaCha20Poly1305IETF.new(configuration.secret_key)
+    def encode(config = Branca::Configuration.default)
+      cipher = RbNaCl::AEAD::XChaCha20Poly1305IETF.new(config.secret_key)
       nonce = RbNaCl::Random.random_bytes(cipher.nonce_bytes)
 
       header = [VERSION, @timestamp.to_i].pack('C N') + nonce
@@ -32,13 +32,13 @@ module Branca
     end
 
     class << self
-      def decode(token, configuration = Branca::Configuration)
+      def decode(token, config = Branca::Configuration.default)
         header, bytes = decode_token_components(token)
         version, timestamp, nonce = decode_header(header)
 
         raise Branca::InvalidVersionError unless version == VERSION
 
-        cipher = RbNaCl::AEAD::XChaCha20Poly1305IETF.new(configuration.secret_key)
+        cipher = RbNaCl::AEAD::XChaCha20Poly1305IETF.new(config.secret_key)
         payload = cipher.decrypt(nonce, bytes.pack('C*'), header.pack('C*'))
 
         new(payload, Time.at(timestamp).utc)

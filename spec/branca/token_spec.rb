@@ -22,10 +22,6 @@ RSpec.describe Branca::Token do
   end
 
   describe 'decoding a token' do
-    before :all do
-      Branca::Configuration.secret_key = 'supersecretkeyyoushouldnotcommit'.b
-    end
-
     let(:payload) { 'Testing, testing, 1, 2, 3' }
     let(:timestamp) { Time.now.utc }
     let(:encoded_token) { described_class.new(payload, timestamp).encode }
@@ -42,7 +38,9 @@ RSpec.describe Branca::Token do
     it 'Decodes a known good token' do
       # Sample from reference Python implementation: https://github.com/tuupola/pybranca
       known_token = '87xqn4ACMhqDZvoNuO0pXykuDlCwRz4Vg7LS3klfHpTiOUw1ramOqfWoaA6bvsGwOQ49MDFOERU0T'
-      token = described_class.decode(known_token)
+      config = Branca::Configuration.new.tap { |cfg| cfg.secret_key = 'supersecretkeyyoushouldnotcommit'.b }
+
+      token = described_class.decode(known_token, config)
       expect(token.payload).to eql('Hello world!')
     end
   end
