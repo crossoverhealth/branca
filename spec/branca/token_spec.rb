@@ -1,8 +1,8 @@
 require "spec_helper"
 
 RSpec.describe Branca::Token do
-  it "has a version number" do
-    expect(Branca::VERSION).not_to be nil
+  it "has a token version number" do
+    expect(Branca::Token::VERSION).to be 0xBA
   end
 
   it "creates a token with default timestamp" do
@@ -24,13 +24,17 @@ RSpec.describe Branca::Token do
       Branca::Configuration.secret_key = "supersecretkeyyoushouldnotcommit".b
     end
 
-    let(:payload) { "Hello world!" }
-    let(:encoded_token) { described_class.new(payload).encode }
+    let(:payload) { "Testing, testing, 1, 2, 3" }
+    let(:timestamp) { Time.now.utc }
+    let(:encoded_token) { described_class.new(payload, timestamp).encode }
+    subject { described_class.decode(encoded_token) }
 
-    it "properly decodes the encoded token" do
-      token = described_class.decode(encoded_token)
+    it "properly decodes the encoded token payload" do
+      expect(subject.payload).to eql(payload)
+    end
 
-      expect(token.payload).to eql(payload)
+    it "properly decodes the encoded token timestamp" do
+      expect(subject.timestamp.to_i).to eql(timestamp.to_i)
     end
 
     it "Decodes a known good token" do

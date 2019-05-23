@@ -11,7 +11,7 @@ module Branca
     attr_reader :payload
     attr_reader :timestamp
 
-    def initialize(payload, timestamp = Time.now)
+    def initialize(payload, timestamp = Time.now.utc)
       @payload = payload
       @timestamp = timestamp
     end
@@ -42,7 +42,7 @@ module Branca
 
       payload = self.cipher.decrypt(nonce, data, header.pack("C*"))
 
-      new(payload, timestamp)
+      new(payload, Time.at(timestamp).utc)
     end
 
     private
