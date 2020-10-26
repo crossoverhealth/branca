@@ -54,11 +54,11 @@ module Branca
       end
 
       def decode_header(header)
-        [
-          header[0],
-          header[1..4].pack('C*').unpack1('N'),
-          header[5..].pack('C*')
-        ]
+        version = header[0]
+        timestamp = header[1..4].pack('C*').unpack('N')&.first
+        nonce = header[5..header.size].pack('C*')
+
+        [version, timestamp, nonce]
       end
     end
   end
